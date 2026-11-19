@@ -3,11 +3,11 @@ import { useState } from 'react';
 const f = (v, d = 1) => (v == null || !Number.isFinite(v) ? '--' : v.toFixed(d));
 // Hotspot positions are % of the photo (turbine.jpg). chip = where the floating label anchors, side = which way it opens.
 const PARTS = {
-  rotor: { label: 'Rotor and blades', dots: [[35, 21.5], [74, 17], [66, 59], [58.6, 32.5]], main: 0, chip: [30, 8], side: 'r' },
-  nacelle: { label: 'Generator and nacelle', dots: [[53.4, 36.3]], main: 0, chip: [52, 43], side: 'l' },
-  tail: { label: 'Tail vane and yaw', dots: [[20.3, 55]], main: 0, chip: [4, 31], side: 'r' },
-  tower: { label: 'Tower', dots: [[49.6, 67.8]], main: 0, chip: [49.6, 76], side: 'l' },
-  grid: { label: 'Electrical and comms', dots: [[49.6, 92]], main: 0, chip: [49.6, 92], side: 'l' },
+  rotor: { label: 'Rotor and blades', dots: [[40.7, 24.3], [70.2, 22.7], [61.8, 55.8], [57, 33.9]], main: 0, chip: [34, 10], side: 'r' },
+  nacelle: { label: 'Generator and nacelle', dots: [[52.2, 36.3]], main: 0, chip: [62, 46], side: 'r' },
+  tail: { label: 'Tail vane and yaw', dots: [[19.1, 47]], main: 0, chip: [4, 30], side: 'r' },
+  tower: { label: 'Tower', dots: [[50.1, 64]], main: 0, chip: [50.1, 82], side: 'l' },
+  grid: { label: 'Electrical and comms', dots: [[50.1, 90]], main: 0, chip: [50.1, 92], side: 'l' },
 };
 const RANK = { ok: 0, warning: 1, critical: 2 };
 
@@ -34,7 +34,7 @@ export default function TurbineView({ sample: s = {}, alerts = [], online }) {
     <div className="tv">
       <div className="tv-photo">
         <img src="/turbine.jpg" alt="65 kW wind turbine" />
-        {online && rpm > 0.5 && <i className="hubring" style={{ left: '58.6%', top: '32.5%', animationDuration: `${Math.min(8, Math.max(0.9, 120 / rpm))}s` }} />}
+        {online && rpm > 0.5 && <i className="hubring" style={{ left: '57%', top: '33.9%', animationDuration: `${Math.min(8, Math.max(0.9, 120 / rpm))}s` }} />}
         {Object.entries(PARTS).map(([k, p]) => {
           const g = by[k];
           const [cx, cy] = p.chip;
