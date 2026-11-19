@@ -14,6 +14,9 @@ export function Gauge({ value, max, unit, caption, decimals = 0, dark }) {
         <linearGradient id="zwGauge" x1="0" y1="1" x2="1" y2="0">
           <stop offset="0%" stopColor="#0d9488" /><stop offset="100%" stopColor="#10b981" />
         </linearGradient>
+        <linearGradient id="zwGaugeDark" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0%" stopColor="#10b981" /><stop offset="100%" stopColor="#a3e635" />
+        </linearGradient>
       </defs>
       {[...Array(41)].map((_, i) => {
         const a = -135 + (270 * i) / 40, big = i % 5 === 0;

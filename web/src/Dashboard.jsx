@@ -7,6 +7,13 @@ const f = (v, d = 1) => (v == null || !Number.isFinite(v) ? '--' : Number(v).toF
 const hhmmss = (ms) => new Date(ms).toLocaleTimeString('en-GB');
 const energy = (kwh) => (kwh >= 10000 ? `${(kwh / 1000).toFixed(2)} MWh` : `${f(kwh, 1)} kWh`);
 
+function Spark({ data }) {
+  if (data.length < 2) return null;
+  const mx = Math.max(...data, 1);
+  const pts = data.map((v, i) => `${((i / (data.length - 1)) * 100).toFixed(1)},${(22 - (v / mx) * 20).toFixed(1)}`).join(' ');
+  return <svg className="spark" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true"><polyline points={pts} fill="none" /></svg>;
+}
+
 function useNow(ms) {
   const [n, setN] = useState(Date.now());
   useEffect(() => { const i = setInterval(() => setN(Date.now()), ms); return () => clearInterval(i); }, [ms]);
@@ -22,6 +29,8 @@ export default function Dashboard({ turbine, live = {}, conn }) {
   const series = live.series || [];
   const end = series.length ? series[series.length - 1].t : now;
   const data = withGaps(series.filter((p) => p.t >= end - win * 60000), 20000);
+  const towerAlerts = alerts.filter((a) => a.part === 'tower');
+  const towerSev = towerAlerts.some((a) => a.severity === 'critical') ? 'critical' : towerAlerts.length ? 'warning' : 'ok';
 
   return (
     <div className={'grid' + (online ? '' : ' is-off')}>
@@ -55,10 +64,13 @@ export default function Dashboard({ turbine, live = {}, conn }) {
         </section>
       </div>
 
-      <section className="card c4">
+      <section className="card dark c4">
         <header><h2>Power output</h2><span className="sub">of {rated} kW rated</span></header>
-        <div className="gwrap"><Gauge value={s.power_kw} max={rated} unit="kW" caption="Power" decimals={1} /></div>
-        <dl className="kv">
+        <div className="gwrap"><Gauge value={s.power_kw} max={rated} unit="kW" caption="Power" decimals={1} dark /></div>
+        <dl className="kv dk">
+          <dt>Status</dt><dd className="cap">{status}</dd>
+          <dt>Brake</dt><dd>{s.brake == null ? '--' : s.brake ? 'Engaged' : 'Released'}</dd>
+          <dt>Run time today</dt><dd>{td ? f(td.run_seconds / 3600, 2) + ' h' : '--'}</dd>
           <dt>Capacity utilisation</dt><dd>{s.power_kw != null ? f((s.power_kw / rated) * 100, 1) + ' %' : '--'}</dd>
           <dt>Energy today</dt><dd>{td ? energy(td.energy_kwh) : '--'}</dd>
           <dt>Lifetime energy</dt><dd>{live.total != null ? energy(live.total) : '--'}</dd>
@@ -81,7 +93,8 @@ export default function Dashboard({ turbine, live = {}, conn }) {
           <div><span>Voltage</span><b>{f(s.voltage_v, 0)}<i> V</i></b></div>
           <div><span>Current</span><b>{f(s.current_a, 1)}<i> A</i></b></div>
           <div><span>Frequency</span><b>{f(s.frequency_hz, 2)}<i> Hz</i></b></div>
-          <div><span>Rotor RPM</span><b>{f(s.rotor_rpm, 1)}<i> rpm</i></b></div>
+          <div><span>Rotor RPM</span><b>{f(s.rotor_rpm, 1)}<i> rpm</i></b><Spark data={series.slice(-60).map((p) => p.rpm).filter(Number.isFinite)} /></div>
+          <div className={'wide vib ' + towerSev}><span>Tower vibration</span><b>{f(s.vibration_mm_s, 2)}<i> mm/s</i></b></div>
         </div>
       </section>
 

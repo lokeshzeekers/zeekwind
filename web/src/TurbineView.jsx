@@ -1,13 +1,13 @@
 import { useState } from 'react';
 
 const f = (v, d = 1) => (v == null || !Number.isFinite(v) ? '--' : v.toFixed(d));
-// Hotspot positions are % of the photo (turbine.jpg)
+// Hotspot positions are % of the photo (turbine.jpg). chip = where the floating label anchors, side = which way it opens.
 const PARTS = {
-  rotor: { label: 'Rotor and blades', dots: [[32, 24], [69, 22.5], [62, 62], [55, 35.5]], main: 1 },
-  nacelle: { label: 'Generator and nacelle', dots: [[47, 43]], main: 0 },
-  tail: { label: 'Tail vane and yaw', dots: [[21, 56]], main: 0 },
-  tower: { label: 'Tower', dots: [[48.5, 78]], main: 0 },
-  grid: { label: 'Electrical and comms', dots: [[46, 94]], main: 0 },
+  rotor: { label: 'Rotor and blades', dots: [[47, 23], [25, 61], [64, 71], [40.5, 49.5]], main: 0, chip: [47, 16], side: 'r' },
+  nacelle: { label: 'Generator and nacelle', dots: [[48.5, 50]], main: 0, chip: [55, 35], side: 'r' },
+  tail: { label: 'Tail vane and yaw', dots: [[63, 54.5]], main: 0, chip: [60, 46], side: 'r' },
+  tower: { label: 'Tower', dots: [[46.5, 78]], main: 0, chip: [46.5, 85], side: 'r' },
+  grid: { label: 'Electrical and comms', dots: [[46.5, 93]], main: 0, chip: [46.5, 95], side: 'r' },
 };
 const RANK = { ok: 0, warning: 1, critical: 2 };
 
@@ -28,16 +28,16 @@ export default function TurbineView({ sample: s = {}, alerts = [], online }) {
     grid: `${f(s.voltage_v, 0)} V, ${f(s.current_a, 1)} A, ${f(s.frequency_hz, 2)} Hz`,
   };
   const rpm = s.rotor_rpm || 0;
+  const yaw = Number.isFinite(s.yaw_angle) ? s.yaw_angle : null;
 
   return (
     <div className="tv">
       <div className="tv-photo">
         <img src="/turbine.jpg" alt="65 kW wind turbine" />
-        {online && rpm > 0.5 && <i className="hubring" style={{ left: '55%', top: '35.5%', animationDuration: `${Math.min(8, Math.max(0.9, 120 / rpm))}s` }} />}
+        {online && rpm > 0.5 && <i className="hubring" style={{ left: '40.5%', top: '49.5%', animationDuration: `${Math.min(8, Math.max(0.9, 120 / rpm))}s` }} />}
         {Object.entries(PARTS).map(([k, p]) => {
           const g = by[k];
-          const [mx, my] = p.dots[p.main];
-          const left = mx > 52;
+          const [cx, cy] = p.chip;
           return (
             <div key={k}>
               {p.dots.map(([x, y], i) => (
@@ -45,15 +45,24 @@ export default function TurbineView({ sample: s = {}, alerts = [], online }) {
                   aria-label={p.label} onMouseEnter={() => setHot(k)} onMouseLeave={() => setHot(null)} onFocus={() => setHot(k)} onBlur={() => setHot(null)} />
               ))}
               {g.items.length > 0 ? (
-                <div className={`chip ${g.sev} ${left ? 'l' : 'r'}`} style={{ left: mx + '%', top: my + '%' }}>
+                <div className={`chip ${g.sev} ${p.side}`} style={{ left: cx + '%', top: cy + '%' }}>
                   <b>{p.label}</b>{g.items[0].message}{g.items.length > 1 && <em> +{g.items.length - 1} more</em>}
                 </div>
               ) : hot === k && (
-                <div className={`chip tip ${left ? 'l' : 'r'}`} style={{ left: mx + '%', top: my + '%' }}><b>{p.label}</b>{val[k]}</div>
+                <div className={`chip tip ${p.side}`} style={{ left: cx + '%', top: cy + '%' }}><b>{p.label}</b>{val[k]}</div>
               )}
             </div>
           );
         })}
+        <div className="yaw" aria-label={`Nacelle yaw ${f(yaw, 0)} degrees`}>
+          <svg viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="44" className="yr" />
+            {[...Array(36)].map((_, i) => { const a = (i * 10 * Math.PI) / 180, big = i % 9 === 0; return <line key={i} x1={50 + 38 * Math.sin(a)} y1={50 - 38 * Math.cos(a)} x2={50 + (big ? 44 : 41) * Math.sin(a)} y2={50 - (big ? 44 : 41) * Math.cos(a)} className={big ? 'yt big' : 'yt'} />; })}
+            {yaw != null && <g transform={`rotate(${yaw} 50 50)`}><path d="M50 8L56 22H44Z" className="ya" /></g>}
+            <text x="50" y="30" className="yl">YAW</text>
+            <text x="50" y="58" className="yv">{yaw != null ? Math.round(yaw) + '°' : '--'}</text>
+          </svg>
+        </div>
       </div>
       <ul className="parts">
         {Object.entries(PARTS).map(([k, p]) => (

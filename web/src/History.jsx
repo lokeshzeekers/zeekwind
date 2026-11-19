@@ -107,11 +107,16 @@ export default function History({ turbine, tz }) {
         <div className="chart">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={d.daily} margin={{ top: 8, right: 4, left: -12, bottom: 0 }}>
+              <defs>
+                <pattern id="zwHatch" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
+                  <rect width="8" height="8" fill="#10b981" fillOpacity=".16" /><rect width="3.5" height="8" fill="#10b981" fillOpacity=".85" />
+                </pattern>
+              </defs>
               <CartesianGrid stroke="rgba(15,23,42,.08)" strokeDasharray="3 4" vertical={false} />
               <XAxis dataKey="day" tick={{ fontSize: 11 }} minTickGap={20} />
               <YAxis tick={{ fontSize: 11 }} unit=" kWh" width={70} />
               <Tooltip cursor={{ fill: 'rgba(15,23,42,.04)' }} formatter={(v) => [f(v, 1) + ' kWh', 'Energy']} />
-              <Bar dataKey="energy_kwh" fill="#10b981" radius={[6, 6, 0, 0]} isAnimationActive={false} />
+              <Bar dataKey="energy_kwh" fill="url(#zwHatch)" stroke="#10b981" strokeWidth={1.2} radius={[6, 6, 0, 0]} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
         </div>
