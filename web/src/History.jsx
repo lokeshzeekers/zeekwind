@@ -59,15 +59,13 @@ export default function History({ turbine, tz }) {
       {!valid && <div className="banner bad c12">Choose a start date before the end date, no more than 400 days apart.</div>}
       {err && <div className="banner bad c12">{err}</div>}
 
-      <section className="card c12">
-        <div className="stats">
-          <div><span>Energy produced</span><b>{f(tot.energy, 1)}<i> kWh</i></b></div>
-          <div><span>Average wind</span><b>{f(tot.wind)}<i> m/s</i></b></div>
-          <div><span>Peak power</span><b>{f(tot.peak)}<i> kW</i></b></div>
-          <div><span>Run time</span><b>{f(tot.run, 2)}<i> h</i></b></div>
-          <div><span>Capacity factor</span><b>{f(tot.cf, 2)}<i> %</i></b></div>
-        </div>
-      </section>
+      <div className="stats c12">
+        <div><span>Energy produced</span><b>{f(tot.energy, 1)}<i> kWh</i></b></div>
+        <div><span>Average wind</span><b>{f(tot.wind)}<i> m/s</i></b></div>
+        <div><span>Peak power</span><b>{f(tot.peak)}<i> kW</i></b></div>
+        <div><span>Run time</span><b>{f(tot.run, 2)}<i> h</i></b></div>
+        <div><span>Capacity factor</span><b>{f(tot.cf, 2)}<i> %</i></b></div>
+      </div>
 
       <section className="card c12">
         <header><h2>Power and wind speed</h2>{d.truncated && <span className="sub">Showing the latest 20,000 points. Pick a coarser detail level to see the whole range.</span>}</header>
@@ -75,15 +73,15 @@ export default function History({ turbine, tz }) {
           {d.rows.length === 0 ? <p className="empty">No data in this period.</p> : (
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={gapped} margin={{ top: 8, right: 4, left: -12, bottom: 0 }}>
-                <defs><linearGradient id="hg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#4f7fe0" stopOpacity=".4" /><stop offset="100%" stopColor="#4f7fe0" stopOpacity=".02" /></linearGradient></defs>
-                <CartesianGrid stroke="rgba(15,26,43,.1)" vertical={false} />
+                <defs><linearGradient id="hg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#10b981" stopOpacity=".36" /><stop offset="100%" stopColor="#10b981" stopOpacity=".02" /></linearGradient></defs>
+                <CartesianGrid stroke="rgba(15,23,42,.08)" strokeDasharray="3 4" vertical={false} />
                 <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} tickFormatter={tFmt} tick={{ fontSize: 11 }} minTickGap={70} />
                 <YAxis yAxisId="p" tick={{ fontSize: 11 }} unit=" kW" width={58} domain={[0, turbine.rated_kw]} />
                 <YAxis yAxisId="w" orientation="right" tick={{ fontSize: 11 }} unit=" m/s" width={58} />
                 <Tooltip labelFormatter={tFmt} formatter={(v, n) => [f(v, 1), n]} />
                 <Legend />
-                <Area yAxisId="p" dataKey="power_kw" name="Power (kW)" stroke="#4f7fe0" fill="url(#hg)" strokeWidth={1.8} dot={false} isAnimationActive={false} />
-                <Line yAxisId="w" dataKey="wind_speed" name="Wind (m/s)" stroke="#0f1a2b" strokeWidth={1.4} dot={false} isAnimationActive={false} />
+                <Area yAxisId="p" type="monotone" dataKey="power_kw" name="Power (kW)" stroke="#0d9488" fill="url(#hg)" strokeWidth={2} dot={false} isAnimationActive={false} />
+                <Line yAxisId="w" type="monotone" dataKey="wind_speed" name="Wind (m/s)" stroke="#0284c7" strokeWidth={1.6} dot={false} isAnimationActive={false} />
               </ComposedChart>
             </ResponsiveContainer>
           )}
@@ -95,11 +93,11 @@ export default function History({ turbine, tz }) {
         <div className="chart">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={gapped} margin={{ top: 8, right: 4, left: -12, bottom: 0 }}>
-              <CartesianGrid stroke="rgba(15,26,43,.1)" vertical={false} />
+              <CartesianGrid stroke="rgba(15,23,42,.08)" strokeDasharray="3 4" vertical={false} />
               <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} tickFormatter={tFmt} tick={{ fontSize: 11 }} minTickGap={70} />
               <YAxis tick={{ fontSize: 11 }} unit=" rpm" width={64} />
               <Tooltip labelFormatter={tFmt} formatter={(v) => [f(v, 1) + ' rpm', 'Rotor']} />
-              <Line dataKey="rotor_rpm" stroke="#8a9a00" strokeWidth={1.6} dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="rotor_rpm" stroke="#334155" strokeWidth={1.7} dot={false} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -109,11 +107,11 @@ export default function History({ turbine, tz }) {
         <div className="chart">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={d.daily} margin={{ top: 8, right: 4, left: -12, bottom: 0 }}>
-              <CartesianGrid stroke="rgba(15,26,43,.1)" vertical={false} />
+              <CartesianGrid stroke="rgba(15,23,42,.08)" strokeDasharray="3 4" vertical={false} />
               <XAxis dataKey="day" tick={{ fontSize: 11 }} minTickGap={20} />
               <YAxis tick={{ fontSize: 11 }} unit=" kWh" width={70} />
-              <Tooltip formatter={(v) => [f(v, 1) + ' kWh', 'Energy']} />
-              <Bar dataKey="energy_kwh" fill="#4f7fe0" radius={[6, 6, 0, 0]} isAnimationActive={false} />
+              <Tooltip cursor={{ fill: 'rgba(15,23,42,.04)' }} formatter={(v) => [f(v, 1) + ' kWh', 'Energy']} />
+              <Bar dataKey="energy_kwh" fill="#10b981" radius={[6, 6, 0, 0]} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -151,7 +149,7 @@ export default function History({ turbine, tz }) {
           <tbody>
             {d.alerts.map((a) => (
               <tr key={a.id}><td>{new Date(a.ts).toLocaleString('en-GB', { timeZone: tz })}</td><td><span className={'pill ' + a.severity}>{a.severity}</span></td><td>{a.message}</td>
-                <td>{a.active ? 'Still active' : new Date(a.cleared_at).toLocaleString('en-GB', { timeZone: tz })}</td></tr>
+                <td>{a.active ? <span className="pill warning">Still active</span> : new Date(a.cleared_at).toLocaleString('en-GB', { timeZone: tz })}</td></tr>
             ))}
             {d.alerts.length === 0 && <tr><td colSpan="4" className="empty">No alerts in this period.</td></tr>}
           </tbody>

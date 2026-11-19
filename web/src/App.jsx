@@ -74,7 +74,7 @@ function Shell({ user, onLogout }) {
               {turbines.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           )}
-          <span className={'live ' + (conn && lv?.online ? 'on' : '')}>{conn ? (lv?.online ? 'Live' : 'Offline') : 'Connecting'}</span>
+          <span className={'live ' + (conn && lv?.online ? 'on' : conn ? 'off' : '')}>{conn ? (lv?.online ? 'Live' : 'Offline') : 'Connecting'}</span>
           <div className="user"><span>{user.full_name || user.username}</span><button onClick={onLogout}>Sign out</button></div>
         </div>
       </header>

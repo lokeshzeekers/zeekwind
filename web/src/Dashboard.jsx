@@ -55,10 +55,10 @@ export default function Dashboard({ turbine, live = {}, conn }) {
         </section>
       </div>
 
-      <section className="card dark c4">
+      <section className="card c4">
         <header><h2>Power output</h2><span className="sub">of {rated} kW rated</span></header>
-        <div className="gwrap"><Gauge value={s.power_kw} max={rated} unit="kW" caption="Power" decimals={1} dark /></div>
-        <dl className="kv dk">
+        <div className="gwrap"><Gauge value={s.power_kw} max={rated} unit="kW" caption="Power" decimals={1} /></div>
+        <dl className="kv">
           <dt>Capacity utilisation</dt><dd>{s.power_kw != null ? f((s.power_kw / rated) * 100, 1) + ' %' : '--'}</dd>
           <dt>Energy today</dt><dd>{td ? energy(td.energy_kwh) : '--'}</dd>
           <dt>Lifetime energy</dt><dd>{live.total != null ? energy(live.total) : '--'}</dd>
@@ -71,7 +71,7 @@ export default function Dashboard({ turbine, live = {}, conn }) {
         <div className="tiles">
           <div><span>Wind speed</span><b>{f(s.wind_speed)} <i>m/s</i></b></div>
           <div><span>Wind from</span><b>{f(s.wind_direction, 0)}<i>°</i></b></div>
-          <div><span>Rotor</span><b>{f(s.rotor_rpm)} <i>rpm</i></b></div>
+          <div><span>Yaw</span><b>{f(s.yaw_angle, 0)}<i>°</i></b></div>
         </div>
       </section>
 
@@ -81,7 +81,7 @@ export default function Dashboard({ turbine, live = {}, conn }) {
           <div><span>Voltage</span><b>{f(s.voltage_v, 0)}<i> V</i></b></div>
           <div><span>Current</span><b>{f(s.current_a, 1)}<i> A</i></b></div>
           <div><span>Frequency</span><b>{f(s.frequency_hz, 2)}<i> Hz</i></b></div>
-          <div><span>Power</span><b>{f(s.power_kw, 1)}<i> kW</i></b></div>
+          <div><span>Rotor RPM</span><b>{f(s.rotor_rpm, 1)}<i> rpm</i></b></div>
         </div>
       </section>
 
@@ -93,14 +93,14 @@ export default function Dashboard({ turbine, live = {}, conn }) {
         <div className="chart">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={data} margin={{ top: 8, right: 4, left: -12, bottom: 0 }}>
-              <defs><linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#4f7fe0" stopOpacity=".45" /><stop offset="100%" stopColor="#4f7fe0" stopOpacity=".02" /></linearGradient></defs>
-              <CartesianGrid stroke="rgba(15,26,43,.1)" vertical={false} />
+              <defs><linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#10b981" stopOpacity=".38" /><stop offset="100%" stopColor="#10b981" stopOpacity=".02" /></linearGradient></defs>
+              <CartesianGrid stroke="rgba(15,23,42,.08)" strokeDasharray="3 4" vertical={false} />
               <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} tickFormatter={hhmmss} tick={{ fontSize: 11 }} minTickGap={50} />
               <YAxis yAxisId="p" domain={[0, rated]} tick={{ fontSize: 11 }} unit=" kW" width={58} />
               <YAxis yAxisId="w" orientation="right" domain={[0, 'auto']} tick={{ fontSize: 11 }} unit=" m/s" width={58} />
               <Tooltip labelFormatter={hhmmss} formatter={(v, n) => [f(v, 1) + (n === 'Power' ? ' kW' : ' m/s'), n]} />
-              <Area yAxisId="p" dataKey="power" name="Power" stroke="#4f7fe0" strokeWidth={2} fill="url(#pg)" dot={false} isAnimationActive={false} />
-              <Line yAxisId="w" dataKey="wind" name="Wind speed" stroke="#0f1a2b" strokeWidth={1.6} dot={false} isAnimationActive={false} />
+              <Area yAxisId="p" type="monotone" dataKey="power" name="Power" stroke="#0d9488" strokeWidth={2.2} fill="url(#pg)" dot={false} isAnimationActive={false} />
+              <Line yAxisId="w" type="monotone" dataKey="wind" name="Wind speed" stroke="#0284c7" strokeWidth={1.8} dot={false} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
