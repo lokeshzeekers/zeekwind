@@ -1,0 +1,5 @@
+# Put your domain here, point its DNS A record at the VPS, then:  caddy run --config Caddyfile
+# Caddy gets and renews the HTTPS certificate automatically.
+dashboard.example.com {
+    reverse_proxy 127.0.0.1:3000
+}

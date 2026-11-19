@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: zeek
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: zeekwind
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zeek -d zeekwind"]
+      interval: 5s
+      retries: 10
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    ports: ["1883:1883"]            # turbine gateway connects here (put TLS in front for the internet, see GUIDE)
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - mqdata:/mosquitto/data
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+      mosquitto: { condition: service_started }
+    environment:
+      DATABASE_URL: postgres://zeek:${POSTGRES_PASSWORD}@db:5432/zeekwind
+      JWT_SECRET: ${JWT_SECRET}
+      MQTT_URL: mqtt://mosquitto:1883
+      MQTT_USER: zeekserver
+      MQTT_PASS: ${MQTT_SERVER_PASSWORD}
+      APP_TIMEZONE: ${APP_TIMEZONE}
+      OFFLINE_AFTER_SECONDS: ${OFFLINE_AFTER_SECONDS:-30}
+    ports: ["127.0.0.1:3000:3000"]  # reverse proxy (Caddy/Nginx) talks to this
+
+volumes:
+  pgdata:
+  mqdata:
