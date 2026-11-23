@@ -1,6 +1,7 @@
 import mqtt from 'mqtt';
 import { q } from './db.js';
 import { evaluate } from './alerts.js';
+import { loadPlants, handleSolar, solarOfflineCheck, SOLAR_TOPIC } from './solar-ingest.js';
 
 const TZ = process.env.APP_TIMEZONE || 'UTC';
 const OFFLINE_MS = (Number(process.env.OFFLINE_AFTER_SECONDS) || 30) * 1000;
@@ -108,9 +109,11 @@ async function offlineCheck() {
 export function startMqtt(bc) {
   broadcast = bc;
   const c = mqtt.connect(process.env.MQTT_URL, { username: process.env.MQTT_USER, password: process.env.MQTT_PASS, reconnectPeriod: 3000 });
-  c.on('connect', () => { console.log('[mqtt] connected'); c.subscribe('zeekwind/turbines/+/telemetry', { qos: 1 }); });
-  c.on('message', (topic, buf) => handle(topic, buf).catch((e) => console.error('[ingest]', e.message)));
+  c.on('connect', () => { console.log('[mqtt] connected'); c.subscribe(['zeekwind/turbines/+/telemetry', SOLAR_TOPIC], { qos: 1 }); });
+  c.on('message', (topic, buf) => (topic.startsWith('zeekpower/solar/') ? handleSolar(topic, buf, broadcast) : handle(topic, buf))
+    .catch((e) => console.error('[ingest]', e.message)));
   c.on('error', (e) => console.error('[mqtt]', e.message));
   setInterval(() => offlineCheck().catch((e) => console.error('[offline]', e.message)), 5000);
-  setInterval(() => loadTurbines().catch(() => {}), 60000);
+  setInterval(() => solarOfflineCheck(broadcast).catch((e) => console.error('[solar offline]', e.message)), 5000);
+  setInterval(() => { loadTurbines().catch(() => {}); loadPlants().catch(() => {}); }, 60000);
 }

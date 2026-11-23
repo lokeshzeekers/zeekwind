@@ -1,5 +1,10 @@
 # Put your domain here, point its DNS A record at the VPS, then:  caddy run --config Caddyfile
-# Caddy gets and renews the HTTPS certificate automatically.
-dashboard.example.com {
+# Caddy gets and renews the HTTPS certificate automatically (WebSockets work by default).
+zeekpower.zeekerstech.com {
     reverse_proxy 127.0.0.1:3000
+}
+
+# Optional: send the old address to the new one
+zeekwind.zeekerstech.com {
+    redir https://zeekpower.zeekerstech.com{uri} permanent
 }

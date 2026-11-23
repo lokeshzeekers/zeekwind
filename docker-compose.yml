@@ -15,7 +15,7 @@ services:
   mosquitto:
     image: eclipse-mosquitto:2
     restart: unless-stopped
-    ports: ["1883:1883"]            # turbine gateway connects here (put TLS in front for the internet, see GUIDE)
+    ports: ["1883:1883"]            # wind and solar gateways connect here (put TLS in front for the internet, see GUIDE)
     volumes:
       - ./mosquitto/config:/mosquitto/config
       - mqdata:/mosquitto/data
@@ -34,6 +34,7 @@ services:
       MQTT_PASS: ${MQTT_SERVER_PASSWORD}
       APP_TIMEZONE: ${APP_TIMEZONE}
       OFFLINE_AFTER_SECONDS: ${OFFLINE_AFTER_SECONDS:-30}
+      CO2_KG_PER_KWH: ${CO2_KG_PER_KWH:-0.82}
     ports: ["127.0.0.1:3000:3000"]  # reverse proxy (Caddy/Nginx) talks to this
 
 volumes:

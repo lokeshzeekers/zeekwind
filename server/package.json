@@ -1,8 +1,8 @@
 {
-  "name": "zeekwind-server",
+  "name": "zeek-power-server",
   "version": "1.0.0",
   "type": "module",
-  "scripts": { "start": "node src/index.js", "simulate": "node tools/simulate.js" },
+  "scripts": { "start": "node src/index.js", "simulate": "node tools/simulate.js", "simulate:solar": "node tools/simulate-solar.js" },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "dotenv": "^16.4.5",

@@ -1,14 +1,15 @@
-# ZeekWind: setup and operations guide
+# Zeek Power: setup and operations guide
 
-ZeekWind is a live monitoring dashboard for wind turbines (built for your 65 kW turbine).
-Each turbine sends a reading every 3-5 seconds over MQTT. The server stores every reading,
+Zeek Power is a live monitoring dashboard for **wind turbines and solar power plants**.
+Wind and solar are kept completely separate (own lists, live pages, history, alerts, downloads),
+and the administrator decides which user sees which. Each device sends a reading every 3-5 seconds over MQTT. The server stores every reading,
 calculates energy and daily totals, raises alerts, and pushes the live values to the browser.
 
 ```
  Turbine controller ──(Modbus / analog / serial)──► Gateway at the turbine
                                                        │  MQTT, every 3-5 s
                                                        ▼
-                       VPS:  Mosquitto (MQTT broker) ─► ZeekWind server ─► PostgreSQL (kept until you delete)
+                       VPS:  Mosquitto (MQTT broker) ─► Zeek Power server ─► PostgreSQL (kept until you delete)
                                                               │  HTTPS + WebSocket
                                                               ▼
                                                   Browser (login per user)
@@ -21,7 +22,9 @@ Project layout
 | `server/` | Node.js + Express API, MQTT receiver, alert engine, admin CLI, test simulator |
 | `web/` | React dashboard (Vite) |
 | `mosquitto/config/` | MQTT broker config and access rules |
-| `gateway/modbus_to_mqtt.py` | Template for the small computer at the turbine |
+| `gateway/modbus_to_mqtt.py` | Template for the small computer at a wind turbine |
+| `gateway/solar_modbus_to_mqtt.py` | Template for the small computer at a solar plant |
+| `nginx/` | nginx site files for `zeekpower.zeekerstech.com` |
 | `scripts/` | `setup.sh`, `add-mqtt-device.sh` |
 
 ---
@@ -35,11 +38,11 @@ You need a Linux VPS (Ubuntu 22.04 or newer is fine, 1 GB RAM minimum) with Dock
 curl -fsSL https://get.docker.com | sudo sh
 
 # copy the project to the VPS (from your computer), then on the VPS:
-cd zeekwind
+cd zeekwind          # (the git folder keeps its old name; the app is Zeek Power)
 ./scripts/setup.sh            # creates .env with random secrets + the server's MQTT login
 nano .env                     # set APP_TIMEZONE to your site's timezone (e.g. Asia/Kolkata)
 docker compose up -d --build  # first build takes a few minutes
-docker compose logs -f app    # you should see: "ZeekWind server on :3000" and "[mqtt] connected"
+docker compose logs -f app    # you should see: "Zeek Power server on :3000" and "[mqtt] connected"
 ```
 
 The dashboard is now on the VPS at port 3000 (bound to localhost only, on purpose).
@@ -188,7 +191,7 @@ Run it permanently with systemd:
 ```ini
 # /etc/systemd/system/zeekwind-gateway.service
 [Unit]
-Description=ZeekWind gateway
+Description=Zeek Power gateway
 After=network-online.target
 [Service]
 ExecStart=/usr/bin/python3 /opt/zeekwind/modbus_to_mqtt.py
@@ -318,3 +321,173 @@ Local development without Docker: run PostgreSQL and Mosquitto yourself, copy th
 - **Temperature and weather.** There are no weather or ambient-temperature panels. Generator
   temperature is only used for an alert if your turbine sends it.
 - **Rated power** defaults to 65 kW, as you said. Cut-in, rated wind speed, rated rpm and other specs are not used until you set the limits above.
+
+
+---
+
+## 10. Solar power plants
+
+A solar plant is a separate kind of device from a wind turbine. It has its own list, live
+dashboard, History and reports, alerts and CSV downloads. Nothing is mixed with wind.
+There is no income or cost anywhere: only energy, power, sunlight, temperatures, electrical values and alerts.
+
+### Add a plant and its gateway login
+
+```bash
+alias zw='docker compose exec app node src/cli.js'
+
+# device id = the plant's MQTT username (letters, digits, - and _). It must differ from every wind device id.
+zw add-solar zp-solar-01 "Solar Plant 01" --location "Roof block A" --capacity-kwp 26 --inverter-kw 25 --panels 60
+./scripts/add-mqtt-device.sh zp-solar-01 'a-strong-password-for-the-gateway'
+```
+
+`--capacity-kwp` is the installed panel size (used for specific yield and performance ratio),
+`--inverter-kw` is the inverter AC rating (the maximum of the power dial; leave it out to use the kWp),
+`--panels` is the number of panels shown on the plant picture.
+
+### Who sees what (assigning users)
+
+Wind and solar are assigned separately, so one user can have wind only, solar only, or both.
+
+```bash
+zw add-user priya 'Priya#Pass2026' --name "Priya"          # a normal user (no access to anything yet)
+
+zw assign-solar  priya zp-solar-01        # priya can now see this solar plant
+zw assign        priya zw-65kw-01         # ...and this wind turbine (omit to give solar only)
+zw unassign-solar priya zp-solar-01       # take it away again
+
+zw list                                    # shows, per user, how many wind / solar they can see
+```
+
+What the user sees after logging in:
+
+| Assigned | They see |
+|---|---|
+| wind only | the wind dashboard, as before (no switch) |
+| solar only | the solar dashboard (no switch) |
+| both | a **Wind / Solar** switch at the top; each side has its own plant list and history |
+| nothing | "Nothing assigned yet" |
+| admin (`--admin`) | everything, both kinds |
+
+A user with several plants gets a selector for the kind they are viewing. Access is enforced on the
+server: a user who guesses another plant's address gets "not found".
+
+### Data the solar plant must send
+
+- Topic: `zeekpower/solar/<device_id>/telemetry` (wind keeps `zeekwind/turbines/<device_id>/telemetry`)
+- Login: username = `<device_id>`, password = the one from `add-mqtt-device.sh`. A gateway can publish only to its own topic.
+- One JSON object every 3-5 seconds. **Every field is optional.**
+
+| Field | Unit | Notes |
+|---|---|---|
+| `power_kw` | kW | AC output of the inverter |
+| `dc_power_kw` | kW | optional; calculated from `dc_voltage_v` x `dc_current_a` if missing |
+| `dc_voltage_v`, `dc_current_a` | V, A | panel strings |
+| `ac_voltage_v`, `ac_current_a` | V, A | grid side |
+| `frequency_hz` | Hz | |
+| `power_factor` | 0-1 | |
+| `irradiance_wm2` | W/m2 | pyranometer or reference cell. Needed for sunlight, peak sun hours and performance ratio |
+| `panel_temp_c`, `ambient_temp_c`, `inverter_temp_c` | degC | |
+| `efficiency_pct` | % | optional; calculated from AC / DC power if missing |
+| `status` | text | `running`, `standby`, `idle`, `fault` |
+
+Anything else you send (for example a battery level) is stored in the `extra` column and appears in the readings CSV.
+
+Energy works as for wind: each reading adds `power_kw x seconds since the previous reading / 3600` kWh
+(gaps over 15 s count as 15 s). Sunlight is integrated the same way, in Wh/m2.
+
+What the dashboard shows: current power on a dial against the inverter rating, sunlight dial, panel / ambient
+temperature, DC and AC voltage and current, frequency, inverter efficiency and temperature, a live and a
+full-day power curve, daily / monthly / lifetime energy, specific yield (kWh per kWp), peak sun hours,
+performance ratio, generating time and estimated CO2 avoided (`CO2_KG_PER_KWH` in `.env`, default 0.82).
+
+**Night is not an outage.** A plant that stops sending while it was not generating (night, standby) is shown
+as *Standby* with no alert and wakes by itself at sunrise. A plant that goes quiet while it *was* generating
+raises the critical "No data received" alert, like a turbine.
+
+### Solar alerts
+
+As with wind, a rule runs only when you set its limit. Always on: `fault` status and "no data while generating".
+
+```bash
+zw set-solar-limit zp-solar-01 max_panel_temp 70      # panel temperature (warning)
+zw set-solar-limit zp-solar-01 max_inv_temp 80        # inverter temperature (critical)
+zw set-solar-limit zp-solar-01 dc_voltage_max 800     # DC string voltage (critical)
+zw set-solar-limit zp-solar-01 ac_voltage_min 360     # AC voltage band (warning)
+zw set-solar-limit zp-solar-01 ac_voltage_max 440
+zw set-solar-limit zp-solar-01 freq_min 49            # frequency band (warning)
+zw set-solar-limit zp-solar-01 freq_max 51
+zw set-solar-limit zp-solar-01 min_perf_pct 50        # output below 50% of what the sunlight should give (shading, dirt, dead string)
+zw set-solar-limit zp-solar-01 max_panel_temp null    # remove a limit
+```
+
+(Example numbers only; take real values from your inverter datasheet.)
+
+---
+
+## 11. Seeing it work without real hardware ("duplicate" test data)
+
+### A. Live fake plant (watch the dashboard move)
+
+Create the plant and its MQTT login (section 10), assign yourself, then on the VPS:
+
+```bash
+docker compose exec app node tools/simulate-solar.js --url mqtt://mosquitto:1883 \
+  --device zp-solar-01 --pass 'a-strong-password-for-the-gateway' --capacity 26 --inverter 25 --interval 4 --hour 12
+```
+
+- `--hour 12` freezes the sun at midday so you see full output at any time of day. Without it the sun follows the
+  real clock, so at night the plant correctly shows Standby with 0 kW.
+- `--fast` sweeps sunrise to sunset in about 4 minutes instead.
+- `--event overtemp|fault|lowoutput|overvoltage` makes it trigger an alert (the temperature, voltage and
+  low-output alerts need their limit set first, section 10).
+
+One reading by hand:
+
+```bash
+mosquitto_pub -h YOUR_VPS -p 1883 -u zp-solar-01 -P 'a-strong-password-for-the-gateway' \
+  -t zeekpower/solar/zp-solar-01/telemetry \
+  -m '{"power_kw":18.2,"dc_voltage_v":520,"dc_current_a":35,"ac_voltage_v":400,"ac_current_a":26,"frequency_hz":50,"irradiance_wm2":900,"panel_temp_c":55,"ambient_temp_c":31,"inverter_temp_c":50,"status":"running"}'
+```
+
+The wind simulator is unchanged (`tools/simulate.js`, section 4).
+
+### B. Fake history (fill the History pages instantly)
+
+```bash
+zw seed-demo zp-solar-01 --days 14       # 14 days of realistic fake solar history (works for wind ids too)
+zw clear-demo zp-solar-01 --yes          # removes ONLY the fake rows, never real data
+```
+
+Fake days are marked internally; days that already contain real readings are skipped, so it is safe to run on a live plant.
+The wind power curve used for fake wind history is illustrative only.
+
+---
+
+## 12. Moving to zeekpower.zeekerstech.com
+
+1. **DNS**: add an A record `zeekpower.zeekerstech.com` pointing to the VPS (same IP as `zeekwind.zeekerstech.com`). Wait until `dig +short zeekpower.zeekerstech.com` shows it.
+2. **Update the code on the VPS**: `cd zeekwind && git pull && docker compose up -d --build` then reload the MQTT rules with `docker compose kill -s SIGHUP mosquitto` (the new solar topic rules are in `mosquitto/config/acl`).
+3. **nginx** (the app keeps listening on `127.0.0.1:3000`, nothing changes there):
+
+```bash
+sudo cp nginx/zeekpower.zeekerstech.com.conf /etc/nginx/sites-available/zeekpower.zeekerstech.com
+sudo ln -s /etc/nginx/sites-available/zeekpower.zeekerstech.com /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d zeekpower.zeekerstech.com        # issues the certificate and adds HTTPS + redirect
+```
+
+4. Open https://zeekpower.zeekerstech.com and check the live badge turns green (this proves the WebSocket passes).
+5. **Retire the old address** once happy. Either redirect it (replace the old site file's contents with `nginx/zeekwind-redirect.conf`,
+   then `sudo nginx -t && sudo systemctl reload nginx`), or remove it:
+   `sudo rm /etc/nginx/sites-enabled/zeekwind.zeekerstech.com && sudo systemctl reload nginx`.
+
+Users stay logged in on the new address only after signing in once (browsers keep sessions per address).
+Wind gateways need no change: they connect to the MQTT broker, not to the website.
+
+If you use Caddy instead of nginx, `Caddyfile.example` already has the new domain and the redirect.
+
+### Names that were intentionally NOT changed
+
+So that nothing breaks on a running system: the database name/user (`zeekwind`/`zeek`), the wind MQTT topic
+(`zeekwind/turbines/...`), Docker volume names and the git repository name. They are internal; users never see them.

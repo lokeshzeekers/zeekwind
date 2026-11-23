@@ -24,14 +24,14 @@ export default function Login({ onLogin }) {
         <form className="login-form card" onSubmit={submit}>
           <Logo size={44} />
           <h2>Sign in</h2>
-          <p className="login-lead">Know what your turbine is doing, as it happens.</p>
+          <p className="login-lead">Know what your power plants are doing, as it happens.</p>
           <label>Username<input value={u} onChange={(e) => setU(e.target.value)} autoComplete="username" autoFocus required /></label>
           <label>Password<input type="password" value={p} onChange={(e) => setP(e.target.value)} autoComplete="current-password" required /></label>
           {err && <div className="form-err" role="alert">{err}</div>}
           <button className="btn primary" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
-          <small>Need access? Ask your ZeekWind administrator.</small>
+          <small>Need access? Ask your Zeek Power administrator.</small>
         </form>
-        <p className="login-tag">Live power, rotor speed, wind and alerts for your wind turbines, with every day recorded for review.</p>
+        <p className="login-tag">Live output, weather and alerts for your wind turbines and solar plants, with every day recorded for review.</p>
       </div>
     </main>
   );

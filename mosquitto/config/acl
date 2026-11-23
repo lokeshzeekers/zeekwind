@@ -1,6 +1,9 @@
-# The ZeekWind server may read every turbine's telemetry.
+# The Zeek Power server may read every device's telemetry (wind and solar).
 user zeekserver
 topic read zeekwind/turbines/+/telemetry
+topic read zeekpower/solar/+/telemetry
 
-# Every turbine gateway logs in with username = its device_id and may publish ONLY to its own topic.
+# Every gateway logs in with username = its device_id and may publish ONLY to its own topic.
+# (The wind topic keeps its original name so turbines already in the field keep working.)
 pattern write zeekwind/turbines/%u/telemetry
+pattern write zeekpower/solar/%u/telemetry

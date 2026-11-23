@@ -10,8 +10,11 @@ import jwt from 'jsonwebtoken';
 import { WebSocketServer } from 'ws';
 import { q, migrate } from './db.js';
 import { loadTurbines, startMqtt, liveStatus } from './ingest.js';
+import { loadPlants } from './solar-ingest.js';
+import { solarApi } from './solar-api.js';
 
 const TZ = process.env.APP_TIMEZONE || 'UTC';
+const CO2 = Number(process.env.CO2_KG_PER_KWH) || 0.82; // kg CO2 avoided per kWh of solar (grid emission factor, India CEA ~0.82)
 const SECRET = process.env.JWT_SECRET;
 if (!SECRET || SECRET.length < 16) { console.error('JWT_SECRET missing or too short'); process.exit(1); }
 
@@ -38,7 +41,7 @@ app.post('/api/auth/login', async (req, res) => {
   const u = rows[0];
   if (!u || !(await bcrypt.compare(String(password), u.password_hash))) return res.status(401).json({ error: 'Wrong username or password.' });
   attempts.delete(req.ip);
-  res.json({ token: sign(u), user: { id: u.id, username: u.username, full_name: u.full_name, role: u.role, tz: TZ } });
+  res.json({ token: sign(u), user: { id: u.id, username: u.username, full_name: u.full_name, role: u.role, tz: TZ, co2: CO2 } });
 });
 function auth(req, res, next) {
   try { req.user = jwt.verify((req.headers.authorization || '').replace('Bearer ', ''), SECRET); next(); }
@@ -47,7 +50,7 @@ function auth(req, res, next) {
 app.get('/api/me', auth, async (req, res) => {
   const { rows } = await q('SELECT id,username,full_name,role FROM users WHERE id=$1', [req.user.id]);
   if (!rows[0]) return res.status(401).json({ error: 'Not signed in' });
-  res.json({ ...rows[0], tz: TZ });
+  res.json({ ...rows[0], tz: TZ, co2: CO2 });
 });
 
 // ---------- turbines ----------
@@ -111,6 +114,10 @@ app.get('/api/turbines/:id/alerts', auth, guard, async (req, res) => {
   const { rows } = await q('SELECT id,ts,code,severity,part,message,value,active,cleared_at FROM alerts WHERE turbine_id=$1 AND ts>=$2 AND ts<$3 ORDER BY ts DESC LIMIT 1000', [req.turbine.id, a, b]);
   res.json({ rows });
 });
+
+// ---------- solar plants (separate from wind) ----------
+const solar = solarApi(auth, TZ);
+app.use('/api', solar.router);
 
 // ---------- CSV export ----------
 const cell = (v) => v == null ? '' : v instanceof Date ? v.toISOString() : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
@@ -176,7 +183,7 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
 const clients = new Set();
 wss.on('connection', (ws) => {
-  const c = { ws, ids: null, alive: true };
+  const c = { ws, ids: null, sids: null, alive: true };
   const kill = setTimeout(() => !c.ids && ws.close(), 5000);
   ws.on('pong', () => { c.alive = true; });
   ws.on('close', () => { clearTimeout(kill); clients.delete(c); });
@@ -186,15 +193,21 @@ wss.on('connection', (ws) => {
       if (m.type !== 'auth') return;
       const u = jwt.verify(m.token, SECRET);
       c.ids = new Set((await myTurbines(u)).map((t) => t.id));
+      c.sids = new Set((await solar.myPlants(u)).map((p) => p.id));
       clients.add(c);
       ws.send(JSON.stringify({ type: 'ready' }));
     } catch { ws.close(); }
   });
 });
 setInterval(() => clients.forEach((c) => { if (!c.alive) return c.ws.terminate(); c.alive = false; c.ws.ping(); }), 30000);
-const broadcast = (msg) => { const s = JSON.stringify(msg); clients.forEach((c) => c.ids.has(msg.turbine_id) && c.ws.readyState === 1 && c.ws.send(s)); };
+// wind messages carry turbine_id, solar messages carry plant_id; each client only gets what it is assigned
+const broadcast = (msg) => {
+  const s = JSON.stringify(msg);
+  clients.forEach((c) => (msg.plant_id != null ? c.sids.has(msg.plant_id) : c.ids.has(msg.turbine_id)) && c.ws.readyState === 1 && c.ws.send(s));
+};
 
 await migrate();
 await loadTurbines();
+await loadPlants();
 startMqtt(broadcast);
-server.listen(Number(process.env.PORT) || 3000, () => console.log('ZeekWind server on :' + (process.env.PORT || 3000)));
+server.listen(Number(process.env.PORT) || 3000, () => console.log('Zeek Power server on :' + (process.env.PORT || 3000)));

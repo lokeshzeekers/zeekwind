@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-TEMPLATE: read the turbine controller over Modbus TCP and publish to ZeekWind over MQTT every 4 s.
+TEMPLATE (WIND): read the turbine controller over Modbus TCP and publish to Zeek Power over MQTT every 4 s.
 
 Run this on a small computer at the turbine (Raspberry Pi, industrial gateway, mini PC).
 It is a template: the register map below is EMPTY on purpose. Fill it in from your turbine
@@ -21,7 +21,7 @@ MQTT_PASSWORD = "the-password-from-add-mqtt-device"
 INTERVAL = 4                                                        # seconds (3-5)
 
 # ---- register map: FILL IN from the controller manual -------------------------------
-# field name in ZeekWind -> (register address, kind, scale)   kind: "u16" | "s16" | "u32"
+# field name in Zeek Power -> (register address, kind, scale)   kind: "u16" | "s16" | "u32"
 # Example line (NOT real addresses):   "rotor_rpm": (40010, "u16", 0.1),
 REGISTERS = {
     # "wind_speed":   (?, "u16", ?),   # m/s
